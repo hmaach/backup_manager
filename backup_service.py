@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 import os
+import tarfile
 from datetime import datetime
 
 LOGS_DIR = "logs"
 LOG_FILE = os.path.join(LOGS_DIR, "backup_service.log")
 SCHEDULE_FILE = "backup_schedules.txt"
+BACKUPS_DIR = "backups"
 
 
 def now_stamp() -> str:
@@ -38,6 +40,22 @@ def read_schedules() -> list[tuple[str, str, str]]:
     except Exception:
         write_log("Error: can't read backup_schedules.txt")
     return schedules
+
+
+def create_backup(folder: str, backup_name: str) -> str | None:
+    if not os.path.isdir(folder):
+        write_log(f"Error: can't find folder {folder}")
+        return None
+
+    try:
+        os.makedirs(BACKUPS_DIR, exist_ok=True)
+        tar_path = os.path.join(BACKUPS_DIR, f"{backup_name}.tar")
+        with tarfile.open(tar_path, "w") as tar:
+            tar.add(folder, arcname=os.path.basename(folder))
+        return tar_path
+    except Exception:
+        write_log(f"Error: tar failed for {folder}")
+        return None
 
 
 if __name__ == "__main__":
