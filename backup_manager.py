@@ -6,9 +6,10 @@ import subprocess
 from datetime import datetime
 
 LOGS_DIR = "logs"
-LOG_FILE = "logs/backup_manager.log"
+LOG_FILE = LOGS_DIR + "/backup_manager.log"
 SERVICE_SCRIPT = "backup_service.py"
 SCHEDULE_FILE = "backup_schedules.txt"
+BACKUPS_DIR = "backups"
 
 
 def get_time_now():
@@ -173,6 +174,38 @@ def delete_schedule(index_str):
     except:
         print("Error: can't delete schedule")
         write_log("Failed to delete schedule")
+        
+def list_backups():
+    try:
+        print("Show backups list")
+        write_log("Show backups list")
+
+        if not os.path.exists(BACKUPS_DIR):
+            print("Error: can't find backups directory")
+            write_log("Backups directory does not exist")
+            return
+
+        if os.path.isdir(BACKUPS_DIR) == False:
+            print("Error: backups is not a directory")
+            write_log("Backups path is not a directory")
+            return
+
+        files = os.listdir(BACKUPS_DIR)
+        backups = []
+
+        for name in files:
+            if name.endswith(".tar"):
+                backups.append(name)
+
+        backups.sort()
+
+        for b in backups:
+            print(b)
+
+    except:
+        print("Error: can't list backups")
+        write_log("Failed to list backups")
+
 
 
 def main():
@@ -208,8 +241,8 @@ def main():
             print("Usage: python3 backup_manager.py delete <index>")
             return
         delete_schedule(sys.argv[2])
-    # elif command == "backups":
-    #     list_backups()
+    elif command == "backups":
+        list_backups()
     else:
         print(f"Error: unknown command '{command}'")
         print("Available commands: start, stop, create, list, delete, backups")
