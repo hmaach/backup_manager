@@ -39,6 +39,8 @@ def read_schedules() -> list[tuple[str, str, str]]:
                     continue
                 folder, time_str, backup_name = [p.strip() for p in parts]
                 schedules.append((folder, time_str, backup_name))
+    except FileNotFoundError:
+        write_log("Error: cannot open backup_schedules")
     except Exception:
         write_log("Error: can't read backup_schedules.txt")
     return schedules
