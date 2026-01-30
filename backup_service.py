@@ -6,6 +6,7 @@ from datetime import datetime
 
 LOGS_DIR = "logs"
 LOG_FILE = os.path.join(LOGS_DIR, "backup_service.log")
+PID_FILE = os.path.join(LOGS_DIR, "backup_service.pid")
 SCHEDULE_FILE = "backup_schedules.txt"
 BACKUPS_DIR = "backups"
 SLEEP_SECONDS = 45
@@ -39,6 +40,8 @@ def read_schedules() -> list[tuple[str, str, str]]:
                     continue
                 folder, time_str, backup_name = [p.strip() for p in parts]
                 schedules.append((folder, time_str, backup_name))
+    except FileNotFoundError:
+        write_log("Error: cannot open backup_schedules")
     except Exception:
         write_log("Error: can't read backup_schedules.txt")
     return schedules
@@ -47,6 +50,15 @@ def read_schedules() -> list[tuple[str, str, str]]:
 def create_backup(folder: str, backup_name: str) -> str | None:
     if not os.path.isdir(folder):
         write_log(f"Error: can't find folder {folder}")
+        return None
+    try:
+        os.makedirs(BACKUPS_DIR, exist_ok=True)
+        tar_path = os.path.join(BACKUPS_DIR, f"{backup_name}.tar")
+        with tarfile.open(tar_path, "w") as tar:
+            tar.add(folder, arcname=os.path.basename(folder))
+        return tar_path
+    except Exception:
+        write_log(f"Error: tar failed for {folder}")
         return None
 
 
@@ -64,19 +76,15 @@ def run_once() -> None:
         if tar_path:
             write_log(f"Backup done for {folder} in {tar_path}")
 
-    try:
-        os.makedirs(BACKUPS_DIR, exist_ok=True)
-        tar_path = os.path.join(BACKUPS_DIR, f"{backup_name}.tar")
-        with tarfile.open(tar_path, "w") as tar:
-            tar.add(folder, arcname=os.path.basename(folder))
-        return tar_path
-    except Exception:
-        write_log(f"Error: tar failed for {folder}")
-        return None
-
 
 if __name__ == "__main__":
     write_log("backup_service starting")
+    try:
+        os.makedirs(LOGS_DIR, exist_ok=True)
+        with open(PID_FILE, "w", encoding="utf-8") as pid_file:
+            pid_file.write(str(os.getpid()))
+    except Exception:
+        write_log("Error: cannot write pid file")
     while True:
         try:
             run_once()
