@@ -39,7 +39,7 @@ def service_is_running():
 
 def start_service():
     if service_is_running():
-        write_log("Tried to start service but it was already running")
+        write_log("Error: service already running")
         return
 
     try:
@@ -88,6 +88,19 @@ def create_schedule(schedule):
             write_log("Empty parts in schedule: " + schedule)
             return
 
+        try:
+            schedule_time = datetime.strptime(time_str, "%H:%M").time()
+        except ValueError:
+            print("Invalid time format: " + time_str)
+            write_log("Invalid time format: " + time_str)
+            return
+
+        # current_time = datetime.now().time()
+
+        # if schedule_time < current_time:
+        #     write_log("Skipped schedule (time passed)")
+        #     return
+
         f = open(SCHEDULE_FILE, "a")
         f.write(folder + ";" + time_str + ";" + backup_name + "\n")
         f.close()
@@ -134,7 +147,7 @@ def delete_schedule(index_str):
         f.close()
 
         if index < 0 or index >= len(lines):
-            write_log("Invalid schedule index: " + str(index))
+            print("Invalid schedule index: " + str(index))
             return
 
         # remove the line
