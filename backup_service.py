@@ -48,6 +48,15 @@ def create_backup(folder: str, backup_name: str) -> str | None:
     if not os.path.isdir(folder):
         write_log(f"Error: can't find folder {folder}")
         return None
+    try:
+        os.makedirs(BACKUPS_DIR, exist_ok=True)
+        tar_path = os.path.join(BACKUPS_DIR, f"{backup_name}.tar")
+        with tarfile.open(tar_path, "w") as tar:
+            tar.add(folder, arcname=os.path.basename(folder))
+        return tar_path
+    except Exception:
+        write_log(f"Error: tar failed for {folder}")
+        return None
 
 
 def current_time_hhmm() -> str:
@@ -63,16 +72,6 @@ def run_once() -> None:
         tar_path = create_backup(folder, backup_name)
         if tar_path:
             write_log(f"Backup done for {folder} in {tar_path}")
-
-    try:
-        os.makedirs(BACKUPS_DIR, exist_ok=True)
-        tar_path = os.path.join(BACKUPS_DIR, f"{backup_name}.tar")
-        with tarfile.open(tar_path, "w") as tar:
-            tar.add(folder, arcname=os.path.basename(folder))
-        return tar_path
-    except Exception:
-        write_log(f"Error: tar failed for {folder}")
-        return None
 
 
 if __name__ == "__main__":

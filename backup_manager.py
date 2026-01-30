@@ -27,14 +27,23 @@ def write_log(text):
         pass
 
 
-def service_is_running():
+def _service_pids():
     try:
-        ps = subprocess.run(["ps", "-A", "-f"], capture_output=True, text=True)
-        if SERVICE_SCRIPT in ps.stdout:
-            return True
-        return False
+        proc = subprocess.run(
+            ["pgrep", "-f", SERVICE_SCRIPT],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if proc.stdout.strip() == "":
+            return []
+        return [int(pid) for pid in proc.stdout.split() if pid.isdigit()]
     except:
-        return False
+        return []
+
+
+def service_is_running():
+    return len(_service_pids()) > 0
 
 
 def start_service():
@@ -55,19 +64,13 @@ def stop_service():
         return
 
     try:
-        ps = subprocess.run(["ps", "-A", "-f"], capture_output=True, text=True)
-
-        for line in ps.stdout.split("\n"):
-            if SERVICE_SCRIPT in line and "python" in line:
-                parts = line.split()
-                pid = int(parts[1])
-
-                os.kill(pid, 9)
-
-                write_log("backup_service stopped")
-                return
-
-        write_log("Couldn't find backup_service process")
+        pids = _service_pids()
+        if not pids:
+            write_log("Couldn't find backup_service process")
+            return
+        for pid in pids:
+            os.kill(pid, 9)
+        write_log("backup_service stopped")
     except:
         write_log("Failed to stop backup_service")
 
