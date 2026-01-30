@@ -5,9 +5,11 @@ from datetime import datetime
 
 LOGS_DIR = "logs"
 LOG_FILE = LOGS_DIR + "/backup_manager.log"
+SERVICE_LOG_FILE = LOGS_DIR + "/backup_service.log"
 SERVICE_SCRIPT = "backup_service.py"
 SCHEDULE_FILE = "backup_schedules.txt"
 BACKUPS_DIR = "backups"
+PID_FILE = LOGS_DIR + "/backup_service.pid"
 
 
 def get_time_now():
@@ -27,19 +29,55 @@ def write_log(text):
         pass
 
 
-def _service_pids():
+def write_service_log(text):
     try:
-        proc = subprocess.run(
-            ["pgrep", "-f", SERVICE_SCRIPT],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if proc.stdout.strip() == "":
-            return []
-        return [int(pid) for pid in proc.stdout.split() if pid.isdigit()]
+        if not os.path.exists(LOGS_DIR):
+            os.mkdir(LOGS_DIR)
+        f = open(SERVICE_LOG_FILE, "a")
+        f.write("[" + get_time_now() + "] " + text + "\n")
+        f.close()
     except:
-        return []
+        pass
+
+
+def _read_pid_file():
+    try:
+        if not os.path.exists(PID_FILE):
+            return None
+        with open(PID_FILE, "r") as f:
+            raw = f.read().strip()
+        if raw == "":
+            return None
+        return int(raw)
+    except:
+        return None
+
+
+def _pid_is_running(pid):
+    try:
+        os.kill(pid, 0)
+    except:
+        return False
+    return True
+
+
+def _service_pids():
+    pids = []
+    pid = _read_pid_file()
+    if pid is not None:
+        if _pid_is_running(pid):
+            pids.append(pid)
+        else:
+            try:
+                os.remove(PID_FILE)
+            except:
+                pass
+    # de-dup while preserving order
+    uniq = []
+    for pid in pids:
+        if pid not in uniq:
+            uniq.append(pid)
+    return uniq
 
 
 def service_is_running():
@@ -48,37 +86,43 @@ def service_is_running():
 
 def start_service():
     if service_is_running():
-        print("Error: backup_service already running")
+        print("Error: backup_service already running", flush=True)
         write_log("Error: service already running")
         return
 
     try:
-        subprocess.Popen([sys.executable, SERVICE_SCRIPT], start_new_session=True)
-        print("backup_service started")
+        if not os.path.exists(LOGS_DIR):
+            os.mkdir(LOGS_DIR)
+        proc = subprocess.Popen([sys.executable, SERVICE_SCRIPT], start_new_session=True)
+        try:
+            with open(PID_FILE, "w") as f:
+                f.write(str(proc.pid))
+        except:
+            pass
+        print("backup_service started", flush=True)
         write_log("backup_service started")
     except:
-        print("Error: can't start backup_service")
+        print("Error: can't start backup_service", flush=True)
         write_log("Failed to start backup_service")
 
 
 def stop_service():
-    if not service_is_running():
-        print("Error: backup_service not running")
-        write_log("Error: can't stop backup_service")
-        return
-
     try:
         pids = _service_pids()
         if not pids:
-            print("Error: could not find process to kill")
-            write_log("Couldn't find backup_service process")
+            print("Error: backup_service not running", flush=True)
+            write_log("Error: can't stop backup_service")
             return
         for pid in pids:
             os.kill(pid, 9)
-        print("backup_service stopped")
+        try:
+            os.remove(PID_FILE)
+        except:
+            pass
+        print("backup_service stopped", flush=True)
         write_log("backup_service stopped")
     except:
-        print("Error: can't stop backup_service")
+        print("Error: can't stop backup_service", flush=True)
         write_log("Failed to stop backup_service")
 
 
@@ -87,7 +131,8 @@ def create_schedule(schedule):
         stuff = schedule.split(";")
 
         if len(stuff) != 3:
-            write_log("Bad schedule format: " + schedule)
+            print("Error: malformed schedule:", schedule)
+            write_log("Error: malformed schedule: " + schedule)
             return
 
         folder = stuff[0].strip()
@@ -95,6 +140,7 @@ def create_schedule(schedule):
         backup_name = stuff[2].strip()
 
         if folder == "" or time_str == "" or backup_name == "":
+            print("Error: malformed schedule:", schedule)
             write_log("Empty parts in schedule: " + schedule)
             return
 
@@ -115,17 +161,21 @@ def create_schedule(schedule):
         f.write(folder + ";" + time_str + ";" + backup_name + "\n")
         f.close()
 
+        print("New schedule added:", folder + ";" + time_str + ";" + backup_name)
         write_log("Added schedule: " + folder + ";" + time_str + ";" + backup_name)
 
     except:
+        print("Error: can't create schedule")
         write_log("Failed to create schedule")
 
 
 def list_schedules():
     try:
+        print("Show schedules list")
         write_log("Listing schedules")
 
         if not os.path.exists(SCHEDULE_FILE):
+            print("Error: can't find backup_schedules.txt")
             write_log("Schedule file missing")
             return
 
@@ -141,6 +191,7 @@ def list_schedules():
             i += 1
 
     except:
+        print("Error: can't read schedules")
         write_log("Failed to read schedules")
 
 
@@ -178,13 +229,16 @@ def delete_schedule(index_str):
 
 def list_backups():
     try:
+        print("Show backups list")
         write_log("Show backups list")
 
         if not os.path.exists(BACKUPS_DIR):
-            write_log("Backups directory does not exist")
+            print("Error: can't find backups directory")
+            write_log("Error: can't find backups directory")
             return
 
         if os.path.isdir(BACKUPS_DIR) == False:
+            print("Error: backups is not a directory")
             write_log("Backups path is not a directory")
             return
 
@@ -201,6 +255,7 @@ def list_backups():
             print(b)
 
     except:
+        print("Error: can't list backups")
         write_log("Failed to list backups")
 
 
@@ -243,6 +298,7 @@ def main():
         print(f"Error: unknown command '{command}'")
         print("Available commands: start, stop, create, list, delete, backups")
         write_log("Error: unknown command")
+        write_service_log("Error: unknown instruction")
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ from datetime import datetime
 
 LOGS_DIR = "logs"
 LOG_FILE = os.path.join(LOGS_DIR, "backup_service.log")
+PID_FILE = os.path.join(LOGS_DIR, "backup_service.pid")
 SCHEDULE_FILE = "backup_schedules.txt"
 BACKUPS_DIR = "backups"
 SLEEP_SECONDS = 45
@@ -78,6 +79,12 @@ def run_once() -> None:
 
 if __name__ == "__main__":
     write_log("backup_service starting")
+    try:
+        os.makedirs(LOGS_DIR, exist_ok=True)
+        with open(PID_FILE, "w", encoding="utf-8") as pid_file:
+            pid_file.write(str(os.getpid()))
+    except Exception:
+        write_log("Error: cannot write pid file")
     while True:
         try:
             run_once()
