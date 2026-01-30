@@ -87,7 +87,7 @@ def service_is_running():
 def start_service():
     if service_is_running():
         print("Error: backup_service already running", flush=True)
-        write_log("Error: service already running")
+        write_log("Error: backup_service already running")
         return
 
     try:
@@ -111,7 +111,7 @@ def stop_service():
         pids = _service_pids()
         if not pids:
             print("Error: backup_service not running", flush=True)
-            write_log("Error: can't stop backup_service")
+            write_log("Error: backup_service not running")
             return
         for pid in pids:
             os.kill(pid, 9)
@@ -162,7 +162,7 @@ def create_schedule(schedule):
         f.close()
 
         print("New schedule added:", folder + ";" + time_str + ";" + backup_name)
-        write_log("Added schedule: " + folder + ";" + time_str + ";" + backup_name)
+        write_log("New schedule added: " + folder + ";" + time_str + ";" + backup_name)
 
     except:
         print("Error: can't create schedule")
@@ -172,11 +172,11 @@ def create_schedule(schedule):
 def list_schedules():
     try:
         print("Show schedules list")
-        write_log("Listing schedules")
+        write_log("Show schedules list")
 
         if not os.path.exists(SCHEDULE_FILE):
             print("Error: can't find backup_schedules.txt")
-            write_log("Schedule file missing")
+            write_log("Error: can't find backup_schedules.txt")
             return
 
         f = open(SCHEDULE_FILE, "r")
@@ -200,7 +200,7 @@ def delete_schedule(index_str):
         index = int(index_str)
 
         if not os.path.exists(SCHEDULE_FILE):
-            write_log("Schedule file missing")
+            write_log("Error: can't find backup_schedules.txt")
             return
 
         f = open(SCHEDULE_FILE, "r")
@@ -208,7 +208,8 @@ def delete_schedule(index_str):
         f.close()
 
         if index < 0 or index >= len(lines):
-            print("Invalid schedule index: " + str(index))
+            print("Error: can't find schedule at index " + str(index))
+            write_log("Error: can't find schedule at index " + str(index))
             return
 
         # remove the line
@@ -219,10 +220,11 @@ def delete_schedule(index_str):
             f.write(line)
         f.close()
 
-        write_log("Deleted schedule at index " + str(index))
+        write_log("Schedule at index " + str(index) + " deleted")
 
     except ValueError:
-        write_log("Invalid index: " + index_str)
+        print("Error: can't find schedule at index " + index_str)
+        write_log("Error: can't find schedule at index " + index_str)
     except:
         write_log("Failed to delete schedule")
 
