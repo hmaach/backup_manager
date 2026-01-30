@@ -242,6 +242,7 @@ def main():
     else:
         print(f"Error: unknown command '{command}'")
         print("Available commands: start, stop, create, list, delete, backups")
+        write_log("Error: unknown command")
 
 
 if __name__ == "__main__":
