@@ -48,30 +48,37 @@ def service_is_running():
 
 def start_service():
     if service_is_running():
+        print("Error: backup_service already running")
         write_log("Error: service already running")
         return
 
     try:
         subprocess.Popen([sys.executable, SERVICE_SCRIPT], start_new_session=True)
+        print("backup_service started")
         write_log("backup_service started")
     except:
+        print("Error: can't start backup_service")
         write_log("Failed to start backup_service")
 
 
 def stop_service():
     if not service_is_running():
+        print("Error: backup_service not running")
         write_log("Error: can't stop backup_service")
         return
 
     try:
         pids = _service_pids()
         if not pids:
+            print("Error: could not find process to kill")
             write_log("Couldn't find backup_service process")
             return
         for pid in pids:
             os.kill(pid, 9)
+        print("backup_service stopped")
         write_log("backup_service stopped")
     except:
+        print("Error: can't stop backup_service")
         write_log("Failed to stop backup_service")
 
 
