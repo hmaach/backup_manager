@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import os
 import sys
 import subprocess
@@ -25,6 +23,7 @@ def write_log(text):
         f.write("[" + get_time_now() + "] " + text + "\n")
         f.close()
     except:
+        print("Error: can't log into log file")
         pass
 
 
@@ -40,26 +39,19 @@ def service_is_running():
 
 def start_service():
     if service_is_running():
-        print("Error: backup_service already running")
-        write_log("Tried to start service but it was already running")
+        write_log("Error: service already running")
         return
 
     try:
-        subprocess.Popen(
-            [sys.executable, SERVICE_SCRIPT],
-            start_new_session=True
-        )
-        print("backup_service started")
+        subprocess.Popen([sys.executable, SERVICE_SCRIPT], start_new_session=True)
         write_log("backup_service started")
     except:
-        print("Error: can't start backup_service")
         write_log("Failed to start backup_service")
 
 
 def stop_service():
     if not service_is_running():
-        print("Error: backup_service not running")
-        write_log("Tried to stop service but it wasn't running")
+        write_log("Error: can't stop backup_service")
         return
 
     try:
@@ -72,23 +64,19 @@ def stop_service():
 
                 os.kill(pid, 9)
 
-                print("backup_service stopped")
                 write_log("backup_service stopped")
                 return
 
-        print("Error: could not find process to kill")
         write_log("Couldn't find backup_service process")
     except:
-        print("Error: can't stop backup_service")
         write_log("Failed to stop backup_service")
 
+
 def create_schedule(schedule):
-    # schedule should look like: folder;time;name
     try:
         stuff = schedule.split(";")
 
         if len(stuff) != 3:
-            print("Error: malformed schedule:", schedule)
             write_log("Bad schedule format: " + schedule)
             return
 
@@ -97,29 +85,37 @@ def create_schedule(schedule):
         backup_name = stuff[2].strip()
 
         if folder == "" or time_str == "" or backup_name == "":
-            print("Error: malformed schedule:", schedule)
             write_log("Empty parts in schedule: " + schedule)
             return
+
+        try:
+            schedule_time = datetime.strptime(time_str, "%H:%M").time()
+        except ValueError:
+            print("Invalid time format: " + time_str)
+            write_log("Invalid time format: " + time_str)
+            return
+
+        # current_time = datetime.now().time()
+
+        # if schedule_time < current_time:
+        #     write_log("Skipped schedule (time passed)")
+        #     return
 
         f = open(SCHEDULE_FILE, "a")
         f.write(folder + ";" + time_str + ";" + backup_name + "\n")
         f.close()
 
-        print("New schedule added:", folder + ";" + time_str + ";" + backup_name)
         write_log("Added schedule: " + folder + ";" + time_str + ";" + backup_name)
 
     except:
-        print("Error: can't create schedule")
         write_log("Failed to create schedule")
 
 
 def list_schedules():
     try:
-        print("Show schedules list")
         write_log("Listing schedules")
 
         if not os.path.exists(SCHEDULE_FILE):
-            print("Error: can't find backup_schedules.txt")
             write_log("Schedule file missing")
             return
 
@@ -135,7 +131,6 @@ def list_schedules():
             i += 1
 
     except:
-        print("Error: can't read schedules")
         write_log("Failed to read schedules")
 
 
@@ -144,7 +139,6 @@ def delete_schedule(index_str):
         index = int(index_str)
 
         if not os.path.exists(SCHEDULE_FILE):
-            print("Error: can't find backup_schedules.txt")
             write_log("Schedule file missing")
             return
 
@@ -153,8 +147,7 @@ def delete_schedule(index_str):
         f.close()
 
         if index < 0 or index >= len(lines):
-            print("Error: can't find schedule at index", index)
-            write_log("Invalid schedule index: " + str(index))
+            print("Invalid schedule index: " + str(index))
             return
 
         # remove the line
@@ -165,28 +158,23 @@ def delete_schedule(index_str):
             f.write(line)
         f.close()
 
-        print("Schedule at index", index, "deleted")
         write_log("Deleted schedule at index " + str(index))
 
     except ValueError:
-        print("Error: invalid index", index_str)
         write_log("Invalid index: " + index_str)
     except:
-        print("Error: can't delete schedule")
         write_log("Failed to delete schedule")
-        
+
+
 def list_backups():
     try:
-        print("Show backups list")
         write_log("Show backups list")
 
         if not os.path.exists(BACKUPS_DIR):
-            print("Error: can't find backups directory")
             write_log("Backups directory does not exist")
             return
 
         if os.path.isdir(BACKUPS_DIR) == False:
-            print("Error: backups is not a directory")
             write_log("Backups path is not a directory")
             return
 
@@ -203,9 +191,7 @@ def list_backups():
             print(b)
 
     except:
-        print("Error: can't list backups")
         write_log("Failed to list backups")
-
 
 
 def main():
